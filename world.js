@@ -65,9 +65,13 @@ export class World {
         this.trackCurve.tension = 0.5;
         this.trackLength = this.trackCurve.getLength();
 
+        // Compute Frames for robust orientation
+        this.trackSteps = 400;
+        this.trackFrames = this.trackCurve.computeFrenetFrames(this.trackSteps, false);
+
         // Create Geometry
         const extrudeSettings = {
-            steps: 400,
+            steps: this.trackSteps,
             bevelEnabled: false,
             extrudePath: this.trackCurve
         };
@@ -135,6 +139,31 @@ export class World {
             );
             this.scene.add(mesh);
         }
+    }
+
+    getTrackBasis(t) {
+        if (!this.trackFrames) return null;
+
+        const clampedT = Math.max(0, Math.min(1, t));
+        const indexFloat = clampedT * this.trackSteps;
+        const index = Math.floor(indexFloat);
+        const alpha = indexFloat - index;
+        const nextIndex = Math.min(this.trackSteps, index + 1);
+
+        // Lerp helper
+        const lerpV3 = (v1, v2, a) => v1.clone().lerp(v2, a).normalize();
+
+        const tangent = lerpV3(this.trackFrames.tangents[index], this.trackFrames.tangents[nextIndex], alpha);
+        const normal = lerpV3(this.trackFrames.normals[index], this.trackFrames.normals[nextIndex], alpha);
+        const binormal = lerpV3(this.trackFrames.binormals[index], this.trackFrames.binormals[nextIndex], alpha);
+        const pos = this.trackCurve.getPointAt(clampedT);
+
+        return {
+            position: pos,
+            tangent: tangent,
+            normal: normal, // Up relative to track
+            binormal: binormal // Right relative to track
+        };
     }
 
     createPlayerMesh(isLocal = false) {

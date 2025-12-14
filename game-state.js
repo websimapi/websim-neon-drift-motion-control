@@ -102,7 +102,7 @@ export class GameState {
 
         // Lateral Movement (Steering)
         const steerForce = controls.steer * 0.5; // Sensitivity
-        this.lateralOffset -= steerForce;
+        this.lateralOffset += steerForce; // Fixed direction
         this.lateralOffset = Math.max(-12, Math.min(12, this.lateralOffset)); // Track width limits
 
         // Jump / Vertical
@@ -146,47 +146,49 @@ export class GameState {
     updateMeshPosition(mesh, t, lateral, vertical) {
         if (!this.world.trackCurve) return;
 
-        const pos = this.world.trackCurve.getPointAt(t);
-        const tangent = this.world.trackCurve.getTangentAt(t);
-        const up = new THREE.Vector3(0, 1, 0);
+        const basis = this.world.getTrackBasis(t);
+        if (!basis) return;
+
+        // Basis: Tangent (Forward), Normal (Up), Binormal (Right)
         
-        // Calculate right vector for lateral movement
-        const right = new THREE.Vector3().crossVectors(tangent, up).normalize();
-        
-        // Apply offsets
-        const finalPos = pos.clone()
-            .add(right.multiplyScalar(lateral))
-            .add(up.multiplyScalar(vertical));
+        const finalPos = basis.position.clone()
+            .add(basis.binormal.clone().multiplyScalar(lateral))
+            .add(basis.normal.clone().multiplyScalar(vertical));
 
         mesh.position.copy(finalPos);
-        
+
         // Orientation
-        // Look ahead
-        const lookT = Math.min(1, t + 0.01);
-        const lookPos = this.world.trackCurve.getPointAt(lookT);
-        mesh.lookAt(lookPos.add(right.multiplyScalar(lateral))); // Look parallel to track at offset
+        // We want the mesh Y to be Normal, Z to be Tangent, X to be Binormal
+        const rotationMatrix = new THREE.Matrix4();
+        rotationMatrix.makeBasis(basis.binormal, basis.normal, basis.tangent);
+        mesh.quaternion.setFromRotationMatrix(rotationMatrix);
         
-        // Bank (Roll) based on steering
+        // Apply extra banking (roll)
         const roll = lateral * -0.05;
         mesh.rotateZ(roll);
     }
 
     updateCamera(controls) {
-        // Chase camera
-        const relativeOffset = new THREE.Vector3(0, 5, -10);
-        
-        // We want the camera to be behind the player, but smooth
+        // Chase camera using track basis
+        const basis = this.world.getTrackBasis(this.t);
+        if (!basis) return;
+
         const playerPos = this.playerMesh.position;
-        const playerRot = this.playerMesh.rotation;
         
-        // Simple follow for now: slightly behind and up based on track tangent
-        const t = this.t;
-        const tangent = this.world.trackCurve.getTangentAt(t).normalize();
+        // Camera position: Behind (-Tangent) and Up (+Normal)
+        const offset = basis.tangent.clone().multiplyScalar(-15)
+            .add(basis.normal.clone().multiplyScalar(8));
+            
+        const targetCamPos = playerPos.clone().add(offset);
         
-        const camPos = playerPos.clone().sub(tangent.multiplyScalar(15)).add(new THREE.Vector3(0, 8, 0));
+        this.world.camera.position.lerp(targetCamPos, 0.1);
         
-        this.world.camera.position.lerp(camPos, 0.1);
-        this.world.camera.lookAt(playerPos);
+        // Look ahead
+        const lookTarget = playerPos.clone().add(basis.tangent.clone().multiplyScalar(10));
+        this.world.camera.lookAt(lookTarget);
+        
+        // Align camera up to track up for intense feel
+        this.world.camera.up.lerp(basis.normal, 0.1);
     }
 
     updateHUD() {
