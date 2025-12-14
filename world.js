@@ -81,12 +81,12 @@ export class World {
         const width = 15;
         const thickness = 1;
         
-        // Rotated shape to align with Frenet frames (Normal=Right, Binormal=Down)
-        // We define Width along Y (Normal) and Thickness along X (Binormal)
-        shape.moveTo(0, -width);
-        shape.lineTo(0, width);
-        shape.lineTo(1, width);
-        shape.lineTo(1, -width);
+        // Shape defined along X axis to ensure it lays flat (aligns with Normal/Horizontal)
+        // Width on X, Thickness on Y (downwards from curve center)
+        shape.moveTo(-width, -thickness);
+        shape.lineTo(width, -thickness);
+        shape.lineTo(width, 0);
+        shape.lineTo(-width, 0);
 
         const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
         
@@ -168,13 +168,13 @@ export class World {
         const binormalFrame = lerpV3(this.trackFrames.binormals[index], this.trackFrames.binormals[nextIndex], alpha);
         const pos = this.trackCurve.getPointAt(clampedT);
 
-        // Frenet frames for this path generally have Normal=Right and Binormal=Down
+        // Frenet frames for this path: Normal=Horizontal (Curvature), Binormal=Vertical (Up)
         // We remap them to our Game Basis: Normal=Up, Binormal=Right
         return {
             position: pos,
             tangent: tangent,
-            normal: binormalFrame.negate(), // True Up (inverted binormal)
-            binormal: normalFrame // True Right (normal)
+            normal: binormalFrame, // True Up (Binormal is typically Up for flat turns)
+            binormal: normalFrame.negate() // True Right (Normal is typically Inward/Left)
         };
     }
 
