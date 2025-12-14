@@ -79,10 +79,14 @@ export class World {
         // Shape of the track cross-section (Ribbon)
         const shape = new THREE.Shape();
         const width = 15;
-        shape.moveTo(-width, 0);
-        shape.lineTo(width, 0);
-        shape.lineTo(width, -1);
-        shape.lineTo(-width, -1);
+        const thickness = 1;
+        
+        // Rotated shape to align with Frenet frames (Normal=Right, Binormal=Down)
+        // We define Width along Y (Normal) and Thickness along X (Binormal)
+        shape.moveTo(0, -width);
+        shape.lineTo(0, width);
+        shape.lineTo(1, width);
+        shape.lineTo(1, -width);
 
         const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
         
@@ -110,15 +114,21 @@ export class World {
         this.boostPads = [];
         for (let i = 5; i < 45; i+=5) {
              const t = i / 50;
-             const pos = this.trackCurve.getPoint(t);
-             const tangent = this.trackCurve.getTangent(t);
-             
+             const basis = this.getTrackBasis(t);
+             if (!basis) continue;
+
              const padGeo = new THREE.PlaneGeometry(10, 10);
              const padMat = new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
              const pad = new THREE.Mesh(padGeo, padMat);
-             pad.position.copy(pos).add(new THREE.Vector3(0, 0.5, 0));
-             pad.lookAt(pos.clone().add(tangent));
-             pad.rotateX(-Math.PI/2);
+             
+             // Position slightly above track
+             pad.position.copy(basis.position).add(basis.normal.clone().multiplyScalar(0.5));
+             
+             // Orient to track surface
+             const rot = new THREE.Matrix4();
+             // We map Plane Z (Up) to Track Up, Plane Y (Forward) to Track Forward
+             rot.makeBasis(basis.binormal, basis.tangent, basis.normal);
+             pad.quaternion.setFromRotationMatrix(rot);
              
              this.scene.add(pad);
              this.boostPads.push({t, mesh: pad});
@@ -154,15 +164,17 @@ export class World {
         const lerpV3 = (v1, v2, a) => v1.clone().lerp(v2, a).normalize();
 
         const tangent = lerpV3(this.trackFrames.tangents[index], this.trackFrames.tangents[nextIndex], alpha);
-        const normal = lerpV3(this.trackFrames.normals[index], this.trackFrames.normals[nextIndex], alpha);
-        const binormal = lerpV3(this.trackFrames.binormals[index], this.trackFrames.binormals[nextIndex], alpha);
+        const normalFrame = lerpV3(this.trackFrames.normals[index], this.trackFrames.normals[nextIndex], alpha);
+        const binormalFrame = lerpV3(this.trackFrames.binormals[index], this.trackFrames.binormals[nextIndex], alpha);
         const pos = this.trackCurve.getPointAt(clampedT);
 
+        // Frenet frames for this path generally have Normal=Right and Binormal=Down
+        // We remap them to our Game Basis: Normal=Up, Binormal=Right
         return {
             position: pos,
             tangent: tangent,
-            normal: normal, // Up relative to track
-            binormal: binormal // Right relative to track
+            normal: binormalFrame.negate(), // True Up (inverted binormal)
+            binormal: normalFrame // True Right (normal)
         };
     }
 
