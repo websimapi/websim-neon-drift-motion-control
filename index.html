@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Neon Drift: Motion Control</title>
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- MediaPipe Dependencies (Script tags are safer for WASM loading than ESM in this environment) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://esm.sh/three@0.160.0",
+            "three/addons/": "https://esm.sh/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+</head>
+<body>
+    <div id="loading-screen">
+        <h1>NEON DRIFT</h1>
+        <p>Initializing Systems...</p>
+    </div>
+
+    <!-- Calibration / Start Overlay -->
+    <div id="calibration-overlay" class="hidden">
+        <div class="video-container">
+            <video id="input-video" class="input_video" playsinline></video>
+            <canvas id="output-canvas" class="output_canvas"></canvas>
+            <div id="calibration-guides">
+                <div class="guide-box"></div>
+                <p>Stand back until you fit in the box.</p>
+                <p>Lean Left/Right to Steer. Squat to Charge Jump.</p>
+            </div>
+        </div>
+        <div class="calibration-stats">
+            <div>Tracking: <span id="tracking-status">Searching...</span></div>
+            <div>Lean: <span id="lean-val">0</span>°</div>
+        </div>
+        <button id="start-btn" disabled>CALIBRATING...</button>
+    </div>
+
+    <!-- Game HUD -->
+    <div id="game-hud" class="hidden">
+        <div class="hud-panel top-left">
+            <div class="metric">
+                <span class="label">SPEED</span>
+                <span class="value" id="speed-display">0</span>
+                <span class="unit">KM/H</span>
+            </div>
+            <div class="metric">
+                <span class="label">POS</span>
+                <span class="value" id="rank-display">1/1</span>
+            </div>
+        </div>
+
+        <div class="hud-panel top-center">
+             <div id="network-status">Connected</div>
+        </div>
+
+        <div class="hud-panel top-right">
+            <div class="metric">
+                <span class="label">SCORE</span>
+                <span class="value" id="score-display">0</span>
+            </div>
+            <div class="metric">
+                <span class="label">MULTIPLIER</span>
+                <span class="value" id="mult-display">x1.0</span>
+            </div>
+        </div>
+
+        <!-- PiP Camera View -->
+        <div id="pip-container">
+            <canvas id="pip-canvas"></canvas>
+        </div>
+        
+        <div id="xr-button-container"></div>
+    </div>
+
+    <script type="module" src="./main.js"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4c6229722a6346bc8eb5cb0e5eae5d41","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
+
